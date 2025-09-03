@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Soccer Predictor</title>
+<style>
+/* --- CSS --- */
+body{font-family:Arial,sans-serif;background:#f5f6fa;color:#2c3e50;margin:0;padding:0;font-size:14px;}
+header{background:#34495e;color:#fff;padding:15px;text-align:center;font-size:18px;position:relative;overflow:hidden;}
+.rolling-ball{position:absolute;width:24px;height:24px;background:url('https://upload.wikimedia.org/wikipedia/commons/6/6a/Football_iu_1996.jpg') no-repeat center/cover;top:50%;transform:translateY(-50%);opacity:0;}
+.section{margin:15px;padding:15px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+.section h2{text-align:center;}
+.selectors-container{text-align:center;margin-bottom:15px;}
+.selectors{display:inline-flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.selectors select{width:180px;padding:8px 12px;border-radius:20px;border:1px solid #ccc;font-size:14px;background:#fff;cursor:pointer;padding-right:30px;-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg fill="%237f8c8d" height="12" viewBox="0 0 24 24" width="12" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');background-repeat:no-repeat;background-position:right 10px center;background-size:12px;transition: all 0.2s ease;}
+.selectors select.open{background-image:url('data:image/svg+xml;utf8,<svg fill="%237f8c8d" height="12" viewBox="0 0 24 24" width="12" xmlns="http://www.w3.org/2000/svg"><path d="M7 14l5-5 5 5z"/></svg>');}
+.selectors select:focus{outline:none;border-color:#2980b9;box-shadow:0 2px 6px rgba(41,128,185,0.4);}
+.dropdown{text-align:center;margin-top:10px;position:relative;}
+.dropdown-selected{padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;width:220px;margin:0 auto;}
+.dropdown-items{position:absolute;width:100%;max-height:250px;overflow-y:auto;background:#fff;border:1px solid #ccc;border-radius:6px;display:none;z-index:100;}
+.fixture-row{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;cursor:pointer;border-radius:6px;margin:2px 0;position:relative;}
+.fixture-logo{width:24px;height:24px;margin:0 4px;}
+.fixture-row.upcoming{background:#ecf0f1;}
+.fixture-row.lowProb{background:#bdc3c7;color:#fff;}
+.top-badge{position:absolute;top:5px;right:10px;background:#e67e22;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;}
+#liveScores,#matchProgress,#goalEventsDiv,#liveTimeline{margin-top:5px;}
+.prediction{font-size:14px;font-weight:bold;padding:8px;border-radius:6px;text-align:center;margin-top:8px;}
+.green{background:#2ecc71;color:#fff;}
+.red{background:#e74c3c;color:#fff;}
+.gray{background:#7f8c8d;color:#fff;}
+#probBar{display:flex;width:100%;height:30px;border-radius:6px;overflow:hidden;margin-top:5px;cursor:pointer;}
+.prob-segment{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:12px;}
+.prob-win{background:#27ae60;}
+.prob-draw{background:#f39c12;}
+.prob-loss{background:#c0392b;}
+.h2h-item{margin:5px 0;padding:5px;border:1px solid #ccc;border-radius:6px;}
+.h2h-toggle{margin-top:3px;padding:2px 6px;border:none;background:#34495e;color:#fff;border-radius:4px;cursor:pointer;}
+.h2h-graph{display:flex;overflow:hidden;max-height:0;transition:max-height 0.3s ease;}
+.h2h-bar{height:20px;margin:0 2px;background:#95a5a6;color:#fff;text-align:center;line-height:20px;width:0;}
+.h2h-bar.Win{background:#2ecc71;}
+.h2h-bar.Draw{background:#f39c12;}
+.h2h-bar.Loss{background:#e74c3c;}
+@media screen and (max-width:480px){.selectors{flex-direction:column;align-items:center;gap:8px}.selectors select{width:90%}.dropdown-selected,.dropdown-items{width:90%;}}
+
+/* --- Modal / Login Styles --- */
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:999;}
+.modal-content{background:#fff;padding:20px 30px;border-radius:8px;text-align:center;width:90%;max-width:400px;}
+.hidden{display:none;}
+.modal input{width:80%;padding:8px;margin:10px 0;border-radius:4px;border:1px solid #ccc;}
+.modal button{padding:8px 20px;background:#34495e;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+.modal button:hover{background:#2c3e50;}
+.error{color:#e74c3c;font-size:13px;margin-top:5px;}
+#switchAuth{color:#2980b9;cursor:pointer;}
+#switchAuth:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<!-- Age Verification Modal -->
+<div id="ageModal" class="modal">
+  <div class="modal-content">
+    <h2>Age Verification</h2>
+    <p>You must be 18+ to access this site.</p>
+    <input type="number" id="ageInput" placeholder="Enter your age">
+    <button id="ageCheckBtn">Enter</button>
+    <p id="ageError" class="error"></p>
+  </div>
+</div>
+
+<!-- Login / Signup Modal -->
+<div id="authContainer" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="authTitle">Login</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button id="authBtn">Login</button>
+    <p id="toggleAuth">Don't have an account? <span id="switchAuth">Signup</span></p>
+    <p id="authError" class="error"></p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="mainApp" class="hidden">
+<header>
+  <h1>⚽ Ultimate Soccer Predictor</h1>
+  <div class="rolling-ball" id="rollingBall"></div>
+</header>
+
+<div class="section">
+<h2>Select Country & League</h2>
+<div class="selectors-container">
+  <div class="selectors">
+    <select id="countrySelect"></select>
+    <select id="leagueSelect"></select>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h2>Fixtures</h2>
+<div class="dropdown">
+  <div class="dropdown-selected" id="selectedFixture">-- Select Fixture --</div>
+  <div class="dropdown-items" id="fixtureItems"></div>
+</div>
+</div>
+
+<div class="section">
+<h2>Live Score</h2>
+<div id="liveScores">Select a fixture to see live score</div>
+<div id="matchProgress"></div>
+<div id="goalEventsDiv"></div>
+<div id="liveTimeline"></div>
+</div>
+
+<div class="section">
+<h2>Predictions</h2>
+<div id="predictionOutput">Select a fixture to see predictions</div>
+<div id="probBar"></div>
+</div>
+
+<div class="section">
+<h2>H2H & Team Form</h2>
+<div id="h2hContainer"></div>
+</div>
+</div>
+
+<script>
+/* --- JavaScript --- */
+// ------------------ League & Fixtures Data ------------------
+const LEAGUES={"Spain":{"Leagues":[{"id":140,"name":"La Liga"},{"id":141,"name":"La Liga 2"}],"Cups":[{"id":999,"name":"Copa del Rey"}],"International":[{"id":998,"name":"UEFA Champions League"}]},"England":{"Leagues":[{"id":39,"name":"Premier League"},{"id":40,"name":"Championship"}],"Cups":[{"id":50,"name":"FA Cup"}],"International":[{"id":51,"name":"UEFA Champions League"}]},"Italy":{"Leagues":[{"id":135,"name":"Serie A"}],"Cups":[{"id":136,"name":"Coppa Italia"}],"International":[]},"Germany":{"Leagues":[{"id":78,"name":"Bundesliga"}],"Cups":[{"id":79,"name":"DFB-Pokal"}],"International":[]},"France":{"Leagues":[{"id":61,"name":"Ligue 1"}],"Cups":[{"id":62,"name":"Coupe de France"}],"International":[]},"South Africa":{"Leagues":[{"id":196,"name":"PSL"}],"Cups":[{"id":197,"name":"Nedbank Cup"}],"International":[]},"USA":{"Leagues":[{"id":300,"name":"MLS"}],"Cups":[{"id":301,"name":"US Open Cup"}],"International":[]}};
+const MOCK_FIXTURES=[{"id":1,"leagueId":140,"home":"Real Madrid","away":"Barcelona","homeLogo":"https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg"},{"id":2,"leagueId":140,"home":"Atletico Madrid","away":"Sevilla","homeLogo":"https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/7/7c/Sevilla_FC_logo.svg"},{"id":3,"leagueId":39,"home":"Manchester United","away":"Chelsea","homeLogo":"https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/c/cc/Chelsea_FC.svg"},{"id":4,"leagueId":39,"home":"Liverpool","away":"Arsenal","homeLogo":"https://upload.wikimedia.org/wikipedia/en/0/0c/Liverpool_FC.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg"},{"id":5,"leagueId":135,"home":"Juventus","away":"Inter Milan","homeLogo":"https://upload.wikimedia.org/wikipedia/en/3/3e/Juventus_Turin.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/0/04/FC_Internazionale_Milano_Logo.svg"},{"id":6,"leagueId":78,"home":"Bayern Munich","away":"Borussia Dortmund","homeLogo":"https://upload.wikimedia.org/wikipedia/en/1/1f/FC_Bayern_München_logo_%282017%29.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg"},{"id":7,"leagueId":61,"home":"PSG","away":"Marseille","homeLogo":"https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/2/29/Marseille_logo.svg"},{"id":8,"leagueId":196,"home":"Kaizer Chiefs","away":"Orlando Pirates","homeLogo":"https://upload.wikimedia.org/wikipedia/en/5/5c/Kaizer_Chiefs_FC_logo.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/7/70/Orlando_Pirates_F.C..svg"},{"id":9,"leagueId":300,"home":"LA Galaxy","away":"Inter Miami","homeLogo":"https://upload.wikimedia.org/wikipedia/en/6/6e/LA_Galaxy_logo.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/5/5f/Inter_Miami_CF_logo.svg"},{"id":10,"leagueId":300,"home":"Seattle Sounders","away":"Atlanta United","homeLogo":"https://upload.wikimedia.org/wikipedia/en/1/1d/Seattle_Sounders_FC_logo.svg","awayLogo":"https://upload.wikimedia.org/wikipedia/en/f/f7/Atlanta_United_FC_logo.svg"}];
+
+// ------------------ DOM Elements ------------------
+const countrySelect=document.getElementById("countrySelect");
+const leagueSelect=document.getElementById("leagueSelect");
+const fixtureItems=document.getElementById("fixtureItems");
+const selectedFixture=document.getElementById("selectedFixture");
+const predictionOutput=document.getElementById("predictionOutput");
+const probBar=document.getElementById("probBar");
+const liveScores=document.getElementById("liveScores");
+const matchProgress=document.getElementById("matchProgress");
+const goalEventsDiv=document.getElementById("goalEventsDiv");
+const h2hContainer=document.getElementById("h2hContainer");
+
+// ------------------ Populate Countries ------------------
+Object.keys(LEAGUES).forEach(c=>{const opt=document.createElement("option");opt.value=c;opt.textContent=c;if(c==="Spain") opt.selected=true;countrySelect.appendChild(opt);});
+
+// ------------------ Load Leagues ------------------
+function loadLeagues(){
+  const country=countrySelect.value;
+  leagueSelect.innerHTML="";
+  const leaguesArray=[...LEAGUES[country].Leagues,...LEAGUES[country].Cups,...LEAGUES[country].International];
+  leaguesArray.forEach((l,idx)=>{const opt=document.createElement("option");opt.value=l.id;opt.textContent=l.name;if(country==="Spain"&&l.name==="La Liga") opt.selected=true;if(idx===0&&!opt.selected) opt.selected=true;leagueSelect.appendChild(opt);});
+  loadFixtures();
+}
+
+// ------------------ Load Fixtures ------------------
+let liveInterval;
+function loadFixtures(){
+  fixtureItems.innerHTML="";
+  selectedFixture.textContent="-- Select Fixture --";
+  predictionOutput.textContent="Select a fixture to see predictions";
+  probBar.innerHTML="";
+  liveScores.textContent="Select a fixture to see live score";
+  matchProgress.textContent="";
+  goalEventsDiv.innerHTML="";
+  h2hContainer.innerHTML="";
+  const leagueId=leagueSelect.value;
+  if(!leagueId) return;
+  let fixtures=MOCK_FIXTURES.filter(fx=>fx.leagueId==leagueId);
+  fixtures.forEach(fx=>{fx.prediction={win:Math.floor(Math.random()*50)+30,draw:Math.floor(Math.random()*(100-30)),loss:Math.floor(Math.random()*20)}; fx.h2h={Win:Math.floor(Math.random()*10),Draw:Math.floor(Math.random()*5),Loss:Math.floor(Math.random()*10)}; fx.liveScore={home:0,away:0,events:[]};});
+  fixtures.sort((a,b)=>Math.max(b.prediction.win,b.prediction.draw,b.prediction.loss)-Math.max(a.prediction.win,a.prediction.draw,a.prediction.loss));
+  fixtures.forEach(fx=>{
+    const row=document.createElement("div");
+    const maxProb=Math.max(fx.prediction.win,fx.prediction.draw,fx.prediction.loss);
+    row.className="fixture-row upcoming"; if(maxProb<80) row.classList.add("lowProb"); row.dataset.id=fx.id;
+    row.innerHTML=`<div class="fixture-info"><img class="fixture-logo" src="${fx.homeLogo}" alt="${fx.home} Logo"><span>${fx.home}</span><strong>vs</strong><img class="fixture-logo" src="${fx.awayLogo}" alt="${fx.away} Logo"><span>${fx.away}</span></div>`;
+    if(maxProb>=80){const badge=document.createElement("div");badge.className="top-badge";badge.textContent="Top Pick";row.appendChild(badge);}
+    row.onclick=()=>{showPrediction(fx); startLiveSimulation(fx); selectedFixture.textContent=`${fx.home} vs ${fx.away}`;};
+    fixtureItems.appendChild(row);
+  });
+  const topFixture=fixtures.find(fx=>Math.max(fx.prediction.win,fx.prediction.draw,fx.prediction.loss)>=80);
+  if(topFixture){selectedFixture.textContent=`${topFixture.home} vs ${topFixture.away}`; showPrediction(topFixture); startLiveSimulation(topFixture);}
+}
+
+// ------------------ Show Prediction ------------------
+function showPrediction(fx){
+  const {win,draw,loss}=fx.prediction;
+  predictionOutput.textContent=`Predicted: ${fx.home} Win: ${win}%, Draw: ${draw}%, ${fx.away} Win: ${loss}%`;
+  probBar.innerHTML=`<div class="prob-segment prob-win" style="flex:${win}">${win}%</div><div class="prob-segment prob-draw" style="flex:${draw}">${draw}%</div><div class="prob-segment prob-loss" style="flex:${loss}">${loss}%</div>`;
+  showH2H(fx);
+}
+
+// ------------------ H2H ------------------
+function showH2H(fx){
+  h2hContainer.innerHTML="";
+  const h2h=fx.h2h;
+  const div=document.createElement("div"); div.className="h2h-item";
+  div.innerHTML=`<strong>H2H Last Matches:</strong><div class="h2h-bar Win" style="flex:${h2h.Win}">${h2h.Win}</div><div class="h2h-bar Draw" style="flex:${h2h.Draw}">${h2h.Draw}</div><div class="h2h-bar Loss" style="flex:${h2h.Loss}">${h2h.Loss}</div>`;
+  h2hContainer.appendChild(div);
+}
+
+// ------------------ Live Simulation ------------------
+function startLiveSimulation(fx){
+  if(liveInterval) clearInterval(liveInterval);
+  fx.liveScore={home:0,away:0,events:[]};
+  liveScores.textContent=`${fx.home} 0 - 0 ${fx.away}`;
+  matchProgress.textContent="Match started";
+  goalEventsDiv.innerHTML="";
+  liveInterval=setInterval(()=>{
+    if(Math.random()<0.1){ const scorer=Math.random()<0.5?"home":"away"; fx.liveScore[scorer]++; fx.liveScore.events.push(`${fx.liveScore.home} - ${fx.liveScore.away} : Goal by ${scorer==="home"?fx.home:fx.away}`); goalEventsDiv.innerHTML=fx.liveScore.events.join("<br>");}
+    liveScores.textContent=`${fx.home} ${fx.liveScore.home} - ${fx.liveScore.away} ${fx.away}`;
+  },2000);
+}
+
+// ------------------ Event Listeners ------------------
+countrySelect.addEventListener('change',loadLeagues);
+leagueSelect.addEventListener('change',loadFixtures);
+[countrySelect,leagueSelect].forEach(sel=>{sel.addEventListener('focus',()=>sel.classList.add('open')); sel.addEventListener('blur',()=>sel.classList.remove('open'));});
+
+// ------------------ Age Verification & Login ------------------
+const ageModal=document.getElementById("ageModal");
+const ageInput=document.getElementById("ageInput");
+const ageCheckBtn=document.getElementById("ageCheckBtn");
+const ageError=document.getElementById("ageError");
+const authContainer=document.getElementById("authContainer");
+const authTitle=document.getElementById("authTitle");
+const username=document.getElementById("username");
+const password=document.getElementById("password");
+const authBtn=document.getElementById("authBtn");
+const switchAuth=document.getElementById("switchAuth");
+const authError=document.getElementById("authError");
+const mainApp=document.getElementById("mainApp");
+let isLogin=true;
+
+ageCheckBtn.onclick=()=>{
+  const age=Number(ageInput.value);
+  if(age>=18){ageModal.classList.add("hidden"); authContainer.classList.remove("hidden");} else {ageError.textContent="You must be 18+ to enter.";}
+};
+
+switchAuth.onclick=()=>{
+  isLogin=!isLogin;
+  authTitle.textContent=isLogin?"Login":"Signup";
+  authBtn.textContent=isLogin?"Login":"Signup";
+};
+
+authBtn.onclick=()=>{
+  if(username.value && password.value){authContainer.classList.add("hidden"); mainApp.classList.remove("hidden"); loadLeagues();} else {authError.textContent="Enter username & password";}
+};
+</script>
+</body>
+</html>
